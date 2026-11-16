@@ -1,11 +1,10 @@
-name: Garmin Value Lab — Mise à jour Prix & Actualités (12h)
+name: Garmin Value Lab — Mise à jour Prix & Actualités
 
 on:
   schedule:
-    # Exécution automatique toutes les 12 heures (00h00 et 12h00 UTC)
-    - cron: '0 */12 * * *'
+    # Exécution automatique toutes les 15 minutes (remplacez 15 par 5 pour 5 min)
+    - cron: '*/15 * * * *'
   workflow_dispatch:
-    # Permet un lancement manuel en un clic depuis l'interface GitHub
 
 permissions:
   contents: write
@@ -35,6 +34,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "Aucune nouvelle donnée à commiter."
           else
-            git commit -m "chore(data): mise à jour automatique prix UE & news Garmin [skip ci]"
+            git commit -m "chore(data): mise à jour prix UE & news Garmin [skip ci]"
             git push
           fi
