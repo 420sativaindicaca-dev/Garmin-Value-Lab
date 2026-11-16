@@ -1,0 +1,65 @@
+{
+  "updated_at": "2026-11-16T18:36:19.221916+00:00",
+  "prices": {
+    "tactix-8-amoled-47": {
+      "name": "Tactix 8 AMOLED 47mm",
+      "offers": []
+    },
+    "tactix-7-amoled": {
+      "name": "Tactix 7 AMOLED",
+      "offers": []
+    },
+    "fenix-8-amoled-47": {
+      "name": "Fenix 8 AMOLED 47mm",
+      "offers": []
+    },
+    "enduro-3": {
+      "name": "Enduro 3 Solar 51mm",
+      "offers": []
+    }
+  },
+  "news": [
+    {
+      "title": "Garmin honors military members with U.S. Armed Forces watch faces",
+      "source": "Garmin Newsroom",
+      "date": "Wed, 11 Nov 2026",
+      "summary": "OLATHE, Kan./Nov. 11, 2026 – Garmin (NYSE: GRMN) is showing its appreciation for members of the military with the launch of new U.S. Armed Forces watch faces, which feature th…",
+      "url": "https://www.garmin.com/en-US/newsroom/press-release/wearables/garmin-honors-military-members-with-u-s-armed-forces-watch-faces/"
+    },
+    {
+      "title": "Garmin and Waze team up to amplify the power of community-driven awareness for cyclists and drivers",
+      "source": "Garmin Newsroom",
+      "date": "Tue, 10 Nov 2026",
+      "summary": "OLATHE, Kan./Nov. 10, 2026/PR Newswire – Garmin (NYSE: GRMN) today announced a first-of-its-kind collaboration with Waze™, the community-driven navigation app used by 200 mill…",
+      "url": "https://www.garmin.com/en-US/newsroom/press-release/sports-fitness/garmin-and-waze-team-up-to-amplify-the-power-of-community-driven-awareness-for-cyclists-and-drivers/"
+    },
+    {
+      "title": "Garmin introduces Descent X10, the essential dive computer for underwater adventures",
+      "source": "Garmin Newsroom",
+      "date": "Tue, 03 Nov 2026",
+      "summary": "OLATHE, Kan./Nov. 3, 2026/PR Newswire&#160;–&#160;Garmin (NYSE: GRMN) today announced&#160;Descent™&#160;X10, its newest dive computer that provides divers with critical dive …",
+      "url": "https://www.garmin.com/en-US/newsroom/press-release/outdoor/garmin-introduces-descent-x10-the-essential-dive-computer-for-underwater-adventures/"
+    },
+    {
+      "title": "Garmin celebrates global digital health innovation at 2026 Garmin Health Summit in Asia",
+      "source": "Garmin Newsroom",
+      "date": "Thu, 29 Oct 2026",
+      "summary": "OLATHE, Kan./Oct. 29, 2026/PR Newswire&#160;–&#160;Garmin (NYSE: GRMN) today announced the recipients of the 2026 Garmin Health Awards, recognizing groundbreaking digital heal…",
+      "url": "https://www.garmin.com/en-US/newsroom/press-release/wearables-health/garmin-health/garmin-celebrates-global-digital-health-innovation-at-2026-garmin-health-summit-in-asia/"
+    },
+    {
+      "title": "Garmin announces third quarter 2026 results",
+      "source": "Garmin Newsroom",
+      "date": "Wed, 28 Oct 2026",
+      "summary": "Schaffhausen, Switzerland/October 28, 2026/PR Newswire – Garmin® Ltd. (NYSE: GRMN), today announced results for the third quarter ended September&#160;26, 2026. Highlights inc…",
+      "url": "https://www.garmin.com/en-US/newsroom/press-release/corporate/garmin-announces-third-quarter-2026-results/"
+    },
+    {
+      "title": "Garmin adds more than a dozen more Guided Visual Approaches to aviation database lineup",
+      "source": "Garmin Newsroom",
+      "date": "Thu, 22 Oct 2026",
+      "summary": "OLATHE, Kan./Oct. 22, 2026 – Garmin (NYSE: GRMN) today announced additional runways and airports for Guided Visual Approaches, including multiple runways and airports in Mexic…",
+      "url": "https://www.garmin.com/en-US/newsroom/press-release/aviation/garmin-adds-more-than-a-dozen-more-guided-visual-approaches-to-aviation-database-lineup/"
+    }
+  ]
+}
