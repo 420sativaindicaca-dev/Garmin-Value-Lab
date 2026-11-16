@@ -1,0 +1,40 @@
+name: Garmin Value Lab — Mise à jour Prix & Actualités (12h)
+
+on:
+  schedule:
+    # Exécution automatique toutes les 12 heures (00h00 et 12h00 UTC)
+    - cron: '0 */12 * * *'
+  workflow_dispatch:
+    # Permet un lancement manuel en un clic depuis l'interface GitHub
+
+permissions:
+  contents: write
+
+jobs:
+  update-garmin-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupération du dépôt
+        uses: actions/checkout@v4
+
+      - name: Configuration de Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Exécution du moteur de veille (scraper.py)
+        run: |
+          python3 scraper.py
+
+      - name: Publication de data.json si modifications détectées
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data.json
+          if git diff --staged --quiet; then
+            echo "Aucune nouvelle donnée à commiter."
+          else
+            git commit -m "chore(data): mise à jour automatique prix UE & news Garmin [skip ci]"
+            git push
+          fi
