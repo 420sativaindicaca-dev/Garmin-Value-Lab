@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="fr" class="antialiased">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Garmin Analytics — Valeur & Rentabilité</title>
+  
+  <!-- Typographie Inter (proche SF Pro) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'Inter', 'sans-serif'],
+            mono: ['SF Mono', 'ui-monospace', 'Menlo', 'monospace']
+          },
+          colors: {
+            apple: {
+              bg: '#F5F5F7',
+              card: '#FFFFFF',
+              border: '#E5E5EA',
+              text: '#1D1D1F',
+              subtext: '#86868B',
+              blue: '#0071E3',
+              blueHover: '#0077ED',
+              green: '#34C759',
+              orange: '#FF9500',
+              red: '#FF3B30'
+            }
+          },
+          boxShadow: {
+            'apple-sm': '0 1px 3px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02)',
+            'apple-md': '0 8px 24px rgba(0, 0, 0, 0.06)',
+            'apple-lg': '0 20px 48px rgba(0, 0, 0, 0.12)'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <!-- Alpine.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+
+  <style>
+    [x-cloak] { display: none !important; }
+    body {
+      background-color: #F5F5F7;
+      color: #1D1D1F;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    .apple-card {
+      background: #FFFFFF;
+      border: 1px solid #E5E5EA;
+      border-radius: 18px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+      transition: transform 0.2s cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 0.2s ease;
+    }
+    .apple-glass {
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+    }
+    /* Custom Range Input Apple Style */
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 5px;
+      background: #E5E5EA;
+      border-radius: 999px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      border: 0.5px solid rgba(0,0,0,0.12);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.08);
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #D1D1D6; border-radius: 999px; }
+  </style>
+</head>
+
+<body x-data="garminApp()" x-init="init()" class="min-h-screen flex flex-col">
+
+  <!-- TOP NAVIGATION BAR (macOS Glassmorphism) -->
+  <header class="sticky top-0 z-30 apple-glass border-b border-apple-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <!-- Brand -->
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-9 h-9 rounded-xl bg-[#1D1D1F] text-white flex items-center justify-center shrink-0 shadow-sm">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="7"></circle>
+            <polyline points="12 9 12 12 14 13.5"></polyline>
+            <path d="M9 2h6M9 22h6"></path>
+          </svg>
+        </div>
+        <div class="truncate">
+          <h1 class="text-base sm:text-lg font-semibold tracking-tight text-apple-text truncate">Garmin Value Lab</h1>
+          <p class="text-[11px] text-apple-subtext hidden sm:block truncate">
+            Analyse de décote, côte marché UE & amortissement • 
+            <span x-text="lastSyncText" class="font-medium text-apple-text"></span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Actions globales -->
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Import / Export JSON -->
+        <div class="hidden md:flex items-center bg-[#EBEBF0] p-0.5 rounded-lg text-xs font-medium">
+          <button @click="exportJSON()" class="px-2.5 py-1.5 rounded-md hover:bg-white hover:shadow-xs transition text-apple-text" title="Exporter sauvegarde JSON">
+            Exporter
+          </button>
+          <label class="px-2.5 py-1.5 rounded-md hover:bg-white hover:shadow-xs transition text-apple-text cursor-pointer" title="Importer sauvegarde JSON">
+            Importer
+            <input type="file" accept=".json" @change="importJSON($event)" class="hidden">
+          </label>
+        </div>
+
+        <!-- Bouton Ajouter une montre -->
+        <button @click="openAddDrawer()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-apple-blue hover:bg-apple-blueHover text-white text-xs sm:text-sm font-medium transition shadow-xs">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          <span>Ajouter une montre</span>
+        </button>
+
+        <!-- Bouton Méthodologie (?) -->
+        <button @click="showMethodology = true" class="w-9 h-9 rounded-full border border-apple-border bg-white hover:bg-[#F5F5F7] text-apple-text flex items-center justify-center text-sm font-semibold transition" title="Légende & Méthodologie">
+          ?
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+
+    <!-- BARRE DE SÉLECTION DU CATALOGUE & MODE COMPARAISON -->
+    <section class="apple-card p-4 sm:p-5">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        
+        <!-- Sélecteur de montres (Pills) -->
+        <div class="space-y-2 flex-1 min-w-0">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold uppercase tracking-wider text-apple-subtext">
+              <span x-text="compareMode ? 'Sélection comparative (jusqu’à 3 modèles)' : 'Modèle actif'"></span>
+            </span>
+            <span class="text-xs text-apple-subtext" x-text="watches.length + ' modèles suivis'"></span>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <template x-for="w in watches" :key="w.id">
+              <button 
+                @click="toggleWatchSelection(w.id)"
+                :class="isSelected(w.id) 
+                  ? 'bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-xs' 
+                  : 'bg-[#F5F5F7] text-apple-text border-transparent hover:border-apple-border'"
+                class="group inline-flex items-center gap-2 px-3.5 py-2 rounded-full border text-xs sm:text-sm font-medium transition max-w-full">
+                <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="'background-color:' + w.color"></span>
+                <span class="truncate" x-text="w.name"></span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded-full" 
+                      :class="isSelected(w.id) ? 'bg-white/20 text-white' : 'bg-black/5 text-apple-subtext'"
+                      x-text="w.screen"></span>
+              </button>
+            </template>
+          </div>
+        </div>
+
+        <!-- Contrôles de Mode & Actions Rapides -->
+        <div class="flex flex-wrap items-center gap-2.5 pt-2 lg:pt-0 border-t lg:border-t-0 border-apple-border shrink-0">
+          <!-- Segmented Control : Vue Unique vs Comparaison -->
+          <div class="bg-[#EBEBF0] p-1 rounded-xl inline-flex text-xs font-medium">
+            <button 
+              @click="setCompareMode(false)" 
+              :class="!compareMode ? 'bg-white text-apple-text shadow-xs' : 'text-apple-subtext hover:text-apple-text'"
+              class="px-3 py-1.5 rounded-lg transition">
+              Vue Unique
+            </button>
+            <button 
+              @click="setCompareMode(true)" 
+              :class="compareMode ? 'bg-white text-apple-text shadow-xs' : 'text-apple-subtext hover:text-apple-text'"
+              class="px-3 py-1.5 rounded-lg transition">
+              Comparateur (2–3)
+            </button>
+          </div>
+
+          <!-- Bouton Éditer les prix -->
+          <button @click="openPriceEditor()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-apple-border bg-white hover:bg-[#F5F5F7] text-xs font-medium text-apple-text transition">
+            <svg class="w-3.5 h-3.5 text-apple-blue" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+            </svg>
+            <span>Éditer les prix</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- KPI CARDS (Résumé instantané du modèle principal sélectionné) -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" x-show="primaryWatch">
+      <!-- KPI 1 : PDSF -->
+      <div class="apple-card p-4 sm:p-5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-apple-subtext">Prix Lancement (PDSF)</span>
+          <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#F5F5F7] text-apple-subtext" x-text="formatDateShort(primaryWatch?.releaseDate)"></span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="text-2xl sm:text-3xl font-bold tracking-tight" x-text="formatEuro(primaryWatch?.msrp)"></span>
+        </div>
+        <p class="mt-1 text-xs text-apple-subtext truncate">
+          Successeur est. : <span class="font-medium text-apple-text" x-text="formatDateShort(primaryWatch?.successorDate)"></span>
+        </p>
+      </div>
+
+      <!-- KPI 2 : Meilleur Neuf Actuel -->
+      <div class="apple-card p-4 sm:p-5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-apple-subtext">Neuf Plancher (UE)</span>
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700"
+                x-text="'-' + calcDiscountPct(primaryWatch?.msrp, getLatestPrices(primaryWatch).newFloor) + '%'"></span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="text-2xl sm:text-3xl font-bold tracking-tight" x-text="formatEuro(getLatestPrices(primaryWatch).newFloor)"></span>
+          <span class="text-xs text-apple-subtext" x-text="'moy. ' + formatEuro(getLatestPrices(primaryWatch).newAvg)"></span>
+        </div>
+        <p class="mt-1 text-xs text-apple-subtext truncate">
+          Économie : <span class="font-medium text-emerald-600" x-text="formatEuro(primaryWatch?.msrp - getLatestPrices(primaryWatch).newFloor)"></span> vs PDSF
+        </p>
+      </div>
+
+      <!-- KPI 3 : Occasion Comme Neuf -->
+      <div class="apple-card p-4 sm:p-5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-apple-subtext">Occasion Plancher</span>
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-apple-blue"
+                x-text="'-' + calcDiscountPct(primaryWatch?.msrp, getLatestPrices(primaryWatch).usedFloor) + '%'"></span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="text-2xl sm:text-3xl font-bold tracking-tight text-apple-blue" x-text="formatEuro(getLatestPrices(primaryWatch).usedFloor)"></span>
+          <span class="text-xs text-apple-subtext" x-text="'moy. ' + formatEuro(getLatestPrices(primaryWatch).usedAvg)"></span>
+        </div>
+        <p class="mt-1 text-xs text-apple-subtext truncate">
+          Décote totale : <span class="font-medium text-apple-text" x-text="formatEuro(primaryWatch?.msrp - getLatestPrices(primaryWatch).usedFloor)"></span>
+        </p>
+      </div>
+
+      <!-- KPI 4 : Valeur Résiduelle +24 Mois -->
+      <div class="apple-card p-4 sm:p-5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-apple-subtext">Valeur Est. (+24 mois)</span>
+          <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">Projection</span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="text-2xl sm:text-3xl font-bold tracking-tight" x-text="formatEuro(predictFuturePrice(primaryWatch, 24, 'usedAvg'))"></span>
+        </div>
+        <p class="mt-1 text-xs text-apple-subtext truncate">
+          Rétention : <span class="font-medium text-apple-text" x-text="Math.round((predictFuturePrice(primaryWatch, 24, 'usedAvg') / primaryWatch?.msrp) * 100) + '% du PDSF'"></span>
+        </p>
+      </div>
+    </section>
+
+    <!-- GRAPHIQUE INTERACTIF & CONTRÔLES PRÉDICTIFS -->
+    <section class="apple-card p-4 sm:p-6 space-y-5">
+      <!-- Header Graphique -->
+      <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-apple-border pb-4">
+        <div>
+          <h2 class="text-base sm:text-lg font-semibold text-apple-text">
+            <span x-text="compareMode ? 'Comparaison des courbes de décote' : 'Évolution historique & projection de valeur — ' + primaryWatch?.name"></span>
+          </h2>
+          <p class="text-xs text-apple-subtext mt-0.5">
+            Cliquez sur un point du graphique pour modifier un relevé • Lignes pleines = Historique réel • Pointillés = Projection modèle
+          </p>
+        </div>
+
+        <!-- Contrôles du graphique -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <!-- Alignement Axe X (visible surtout en mode comparaison) -->
+          <div class="bg-[#EBEBF0] p-1 rounded-xl inline-flex text-xs font-medium">
+            <button 
+              @click="xAxisMode = 'date'; updateChart()" 
+              :class="xAxisMode === 'date' ? 'bg-white text-apple-text shadow-xs' : 'text-apple-subtext'"
+              class="px-2.5 py-1 rounded-lg transition">
+              Date calendaire
+            </button>
+            <button 
+              @click="xAxisMode = 'age'; updateChart()" 
+              :class="xAxisMode === 'age' ? 'bg-white text-apple-text shadow-xs' : 'text-apple-subtext'"
+              class="px-2.5 py-1 rounded-lg transition">
+              Âge (Mois 0 → +48)
+            </button>
+          </div>
+
+          <!-- Horizon de prévision (+1 an à +4 ans) -->
+          <div class="bg-[#EBEBF0] p-1 rounded-xl inline-flex text-xs font-medium">
+            <template x-for="yr in [1, 2, 3, 4]" :key="yr">
+              <button 
+                @click="forecastYears = yr; updateChart()" 
+                :class="forecastYears === yr ? 'bg-white text-apple-text shadow-xs' : 'text-apple-subtext'"
+                class="px-2.5 py-1 rounded-lg transition"
+                x-text="'+' + yr + ' an' + (yr > 1 ? 's' : '')">
+              </button>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filtres de séries (Neuf Plancher, Neuf Moyen, Occasion Plancher, Occasion Moyen) -->
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2">
+          <template x-for="series in seriesConfig" :key="series.key">
+            <button 
+              @click="toggleSeries(series.key)"
+              :class="activeSeries.includes(series.key) ? 'bg-[#1D1D1F] text-white' : 'bg-[#F5F5F7] text-apple-subtext hover:text-apple-text'"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition">
+              <span class="w-2 h-2 rounded-full" :style="'background-color:' + series.badgeColor"></span>
+              <span x-text="series.label"></span>
+            </button>
+          </template>
+        </div>
+
+        <!-- Sliders Paramètres Prédictifs -->
+        <div class="flex flex-wrap items-center gap-4 bg-[#F5F5F7] px-3.5 py-2 rounded-xl border border-apple-border/60 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="text-apple-subtext whitespace-nowrap">Décote annuelle :</span>
+            <input type="range" min="4" max="25" step="1" x-model.number="annualDepreciation" @input="updateChart()" class="w-20">
+            <span class="font-mono font-semibold text-apple-text w-9" x-text="'-' + annualDepreciation + '%'"></span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-apple-subtext whitespace-nowrap">Choc successeur :</span>
+            <input type="range" min="5" max="35" step="1" x-model.number="successorDrop" @input="updateChart()" class="w-20">
+            <span class="font-mono font-semibold text-apple-text w-9" x-text="'-' + successorDrop + '%'"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Canvas Chart.js (Responsive strict sans débordement) -->
+      <div class="relative w-full h-[320px] sm:h-[400px]">
+        <canvas id="priceChart"></canvas>
+      </div>
+
+      <!-- Offres détectées en direct par le scraper (si disponibles dans data.json) -->
+      <div x-show="primaryWatch && getScrapedOffers(primaryWatch.id).length > 0" class="pt-3 border-t border-apple-border">
+        <div class="flex items-center justify-between mb-2.5">
+          <span class="text-xs font-semibold uppercase tracking-wider text-apple-subtext">Meilleures annonces détectées (Veille UE 12h)</span>
+          <span class="text-[11px] text-apple-subtext">Filtrage anti-accessoires actif</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+          <template x-for="(offer, idx) in getScrapedOffers(primaryWatch?.id)" :key="idx">
+            <a :href="offer.url" target="_blank" rel="noopener noreferrer" 
+               class="flex items-center justify-between p-3 rounded-xl bg-[#F5F5F7] hover:bg-[#EBEBF0] transition border border-transparent hover:border-apple-border min-w-0">
+              <div class="min-w-0 pr-2">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-white text-apple-text border border-apple-border" x-text="offer.country + ' • ' + offer.source"></span>
+                  <span class="text-[10px] font-medium" :class="offer.condition === 'Neuf' ? 'text-emerald-600' : 'text-apple-blue'" x-text="offer.condition"></span>
+                </div>
+                <p class="text-xs font-medium text-apple-text truncate mt-1" x-text="offer.title"></p>
+              </div>
+              <div class="text-right shrink-0">
+                <span class="text-sm font-bold text-apple-text" x-text="formatEuro(offer.price)"></span>
+                <span class="block text-[10px] text-apple-blue font-medium">Voir →</span>
+              </div>
+            </a>
+          </template>
+        </div>
+      </div>
+    </section>
+
+    <!-- TABLEAU MATRICIEL COMPARATIF -->
+    <section class="apple-card overflow-hidden">
+      <div class="px-5 py-4 border-b border-apple-border flex items-center justify-between">
+        <div>
+          <h3 class="text-base font-semibold text-apple-text">Matrice comparative de rétention de valeur</h3>
+          <p class="text-xs text-apple-subtext">Synthèse des modèles sélectionnés (base occasion « Comme Neuf » pour la valeur résiduelle)</p>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-[#F5F5F7]/70 text-[11px] font-semibold uppercase tracking-wider text-apple-subtext border-b border-apple-border">
+              <th class="py-3 px-4">Modèle Garmin</th>
+              <th class="py-3 px-4">PDSF</th>
+              <th class="py-3 px-4">Neuf Plancher</th>
+              <th class="py-3 px-4">Occasion Plancher</th>
+              <th class="py-3 px-4">Décote Actuelle</th>
+              <th class="py-3 px-4">Valeur Est. +24m</th>
+              <th class="py-3 px-4">Coût Détention / mois*</th>
+              <th class="py-3 px-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-apple-border text-sm">
+            <template x-for="w in displayedWatches" :key="w.id">
+              <tr class="hover:bg-[#F5F5F7]/50 transition">
+                <td class="py-3.5 px-4 font-medium text-apple-text whitespace-nowrap">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="'background-color:' + w.color"></span>
+                    <span x-text="w.name"></span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-[#F5F5F7] text-apple-subtext" x-text="w.screen"></span>
+                  </div>
+                </td>
+                <td class="py-3.5 px-4 font-mono text-xs text-apple-subtext whitespace-nowrap" x-text="formatEuro(w.msrp)"></td>
+                <td class="py-3.5 px-4 font-mono font-semibold text-apple-text whitespace-nowrap" x-text="formatEuro(getLatestPrices(w).newFloor)"></td>
+                <td class="py-3.5 px-4 font-mono font-semibold text-apple-blue whitespace-nowrap" x-text="formatEuro(getLatestPrices(w).usedFloor)"></td>
+                <td class="py-3.5 px-4 whitespace-nowrap">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700"
+                        x-text="'-' + calcDiscountPct(w.msrp, getLatestPrices(w).usedFloor) + '% (-' + Math.round(w.msrp - getLatestPrices(w).usedFloor) + ' €)'"></span>
+                </td>
+                <td class="py-3.5 px-4 font-mono font-medium text-apple-text whitespace-nowrap" x-text="formatEuro(predictFuturePrice(w, 24, 'usedAvg'))"></td>
+                <td class="py-3.5 px-4 font-mono text-xs text-apple-text whitespace-nowrap">
+                  <span class="font-semibold" x-text="formatEuro((getLatestPrices(w).usedFloor - predictFuturePrice(w, 24, 'usedAvg')) / 24, true)"></span>/mois
+                </td>
+                <td class="py-3.5 px-4 text-right whitespace-nowrap">
+                  <button @click="deleteWatch(w.id)" x-show="watches.length > 1" class="text-xs text-apple-subtext hover:text-apple-red transition px-2 py-1 rounded-lg hover:bg-red-50">
+                    Supprimer
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-5 py-2.5 bg-[#F5F5F7]/50 border-t border-apple-border text-[11px] text-apple-subtext">
+        *Coût de détention calculé sur un achat au prix plancher occasion actuel avec revente estimée à +24 mois.
+      </div>
+    </section>
+
+    <!-- SIMULATEUR AVANCÉ D'ACHAT & D'AMORTISSEMENT -->
+    <section class="apple-card p-5 sm:p-6" x-show="primaryWatch">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-apple-border pb-4 mb-6">
+        <div>
+          <span class="text-[11px] font-semibold uppercase tracking-wider text-apple-blue">Simulateur de rentabilité</span>
+          <h2 class="text-lg font-semibold text-apple-text mt-0.5">
+            Calculateur d'opportunité & amortissement — <span x-text="primaryWatch?.name"></span>
+          </h2>
+        </div>
+        <div class="text-xs text-apple-subtext">
+          Basé sur la courbe prédictive active
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- COLONNE GAUCHE : PARAMÈTRES UTILISATEUR (5 cols) -->
+        <div class="lg:col-span-5 space-y-5 bg-[#F5F5F7] p-4 sm:p-5 rounded-2xl border border-apple-border/70">
+          <!-- Prix d'opportunité -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-xs font-semibold text-apple-text">Votre prix d'achat ciblé (€)</label>
+              <button @click="simPrice = simCondition === 'new' ? getLatestPrices(primaryWatch).newFloor : getLatestPrices(primaryWatch).usedFloor"
+                      class="text-[11px] text-apple-blue hover:underline font-medium">
+                Aligner sur plancher marché
+              </button>
+            </div>
+            <div class="relative">
+              <input type="number" min="50" max="5000" step="10" x-model.number="simPrice"
+                     class="w-full bg-white border border-apple-border rounded-xl px-4 py-3 text-xl font-bold font-mono text-apple-text focus:outline-none focus:ring-2 focus:ring-apple-blue/30 focus:border-apple-blue transition">
+              <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-apple-subtext">EUR</span>
+            </div>
+          </div>
+
+          <!-- État du produit -->
+          <div>
+            <label class="block text-xs font-semibold text-apple-text mb-1.5">État d'acquisition</label>
+            <div class="grid grid-cols-2 gap-2 bg-[#EBEBF0] p-1 rounded-xl text-xs font-medium">
+              <button @click="simCondition = 'new'"
+                      :class="simCondition === 'new' ? 'bg-white text-apple-text shadow-xs' : 'text-apple-subtext'"
+                      class="py-2 rounded-lg transition">
+                Neuf (Boîte scellée)
+              </button>
+              <button @click="simCondition = 'used'"
+                      :class="simCondition === 'used' ? 'bg-white text-apple-text shadow-xs' : 'text-apple-subtext'"
+                      class="py-2 rounded-lg transition">
+                Occasion (« Comme Neuf »)
+              </button>
+            </div>
+          </div>
+
+          <!-- Durée de détention (6 à 48 mois) -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-xs font-semibold text-apple-text">Durée de détention avant revente</label>
+              <span class="text-sm font-bold font-mono text-apple-blue bg-white px-2.5 py-0.5 rounded-lg border border-apple-border" 
+                    x-text="simMonths + ' mois (' + (simMonths/12).toFixed(1) + ' an' + (simMonths >= 24 ? 's' : '') + ')'"></span>
+            </div>
+            <input type="range" min="6" max="48" step="3" x-model.number="simMonths">
+            <div class="flex justify-between text-[10px] text-apple-subtext mt-1 font-mono">
+              <span>6m</span>
+              <span>12m</span>
+              <span>24m</span>
+              <span>36m</span>
+              <span>48m</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- COLONNE DROITE : RÉSULTATS & VERDICT (7 cols) -->
+        <div class="lg:col-span-7 space-y-4">
+          
+          <!-- 1. Jauge Score d'Opportunité -->
+          <div class="p-4 sm:p-5 rounded-2xl border border-apple-border bg-white space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="text-xs font-semibold uppercase tracking-wider text-apple-subtext">Indice de bonne affaire</span>
+              <span class="text-xs font-bold px-3 py-1 rounded-full" :class="opportunityAnalysis.badgeClass" x-text="opportunityAnalysis.label"></span>
+            </div>
+            
+            <!-- Barre de progression segmentée -->
+            <div class="w-full h-3 bg-[#F5F5F7] rounded-full overflow-hidden p-0.5 border border-apple-border/50">
+              <div class="h-full rounded-full transition-all duration-300" 
+                   :class="opportunityAnalysis.barClass"
+                   :style="'width:' + opportunityAnalysis.score + '%'"></div>
+            </div>
+
+            <div class="flex items-center justify-between text-xs text-apple-subtext">
+              <span x-text="opportunityAnalysis.detail"></span>
+              <span class="font-mono font-semibold text-apple-text" x-text="'Réf. plancher : ' + formatEuro(opportunityAnalysis.benchmarkFloor)"></span>
+            </div>
+          </div>
+
+          <!-- 2. Grille Amortissement (3 cartes) -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="p-4 rounded-2xl bg-[#F5F5F7] border border-apple-border/60">
+              <span class="text-[11px] font-medium text-apple-subtext">Revente estimée (+<span x-text="simMonths"></span>m)</span>
+              <div class="text-xl font-bold text-apple-text mt-1 font-mono" x-text="formatEuro(simResult.resaleValue)"></div>
+              <span class="text-[11px] text-emerald-600 font-medium" x-text="Math.round((simResult.resaleValue / (simPrice || 1)) * 100) + '% récupéré'"></span>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-[#F5F5F7] border border-apple-border/60">
+              <span class="text-[11px] font-medium text-apple-subtext">Coût réel mensuel</span>
+              <div class="text-xl font-bold text-apple-blue mt-1 font-mono" x-text="formatEuro(simResult.monthlyCost, true) + '/mois'"></div>
+              <span class="text-[11px] text-apple-subtext" x-text="'Perte nette : ' + formatEuro(simResult.netLoss)"></span>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-[#F5F5F7] border border-apple-border/60">
+              <span class="text-[11px] font-medium text-apple-subtext">Coût réel journalier</span>
+              <div class="text-xl font-bold text-apple-text mt-1 font-mono" x-text="formatEuro(simResult.dailyCost, true) + '/jour'"></div>
+              <span class="text-[11px] text-apple-subtext">Moins qu'un café</span>
+            </div>
+          </div>
+
+          <!-- 3. Verdict d'attente (Acheter maintenant vs Attendre successeur) -->
+          <div class="p-4 sm:p-5 rounded-2xl border border-apple-border bg-gradient-to-br from-white to-[#F5F5F7] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full" :class="waitVerdict.shouldBuyNow ? 'bg-apple-green' : 'bg-apple-orange'"></span>
+                <span class="text-xs font-bold uppercase tracking-wider text-apple-text" x-text="waitVerdict.title"></span>
+              </div>
+              <p class="text-xs text-apple-subtext leading-relaxed" x-text="waitVerdict.explanation"></p>
+            </div>
+            <div class="shrink-0 bg-white px-3.5 py-2.5 rounded-xl border border-apple-border text-right">
+              <span class="block text-[10px] uppercase text-apple-subtext font-semibold">Gain estimé si attente</span>
+              <span class="text-base font-bold font-mono" :class="waitVerdict.waitSavings > 80 ? 'text-apple-orange' : 'text-apple-text'"
+                    x-text="waitVerdict.waitSavings > 0 ? '+' + Math.round(waitVerdict.waitSavings) + ' €' : '0 €'"></span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- PORTAIL ACTUALITÉS GARMIN INTÉGRÉ -->
+    <section class="space-y-4 pt-2">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-apple-text">Actualités & Écosystème Garmin</h2>
+          <p class="text-xs text-apple-subtext">Dernières annonces matérielles, mises à jour firmware et fuites produits (Flux RSS agrégés)</p>
+        </div>
+        <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-white border border-apple-border text-apple-subtext" x-text="newsItems.length + ' articles'"></span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <template x-for="(article, index) in newsItems" :key="index">
+          <a :href="article.url" target="_blank" rel="noopener noreferrer" 
+             class="apple-card p-5 flex flex-col justify-between hover:-translate-y-0.5 hover:shadow-apple-md group">
+            <div class="space-y-2.5">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#F5F5F7] text-apple-blue" x-text="article.source"></span>
+                <span class="text-[11px] text-apple-subtext" x-text="article.date"></span>
+              </div>
+              <h3 class="text-sm font-semibold text-apple-text group-hover:text-apple-blue transition line-clamp-2" x-text="article.title"></h3>
+              <p class="text-xs text-apple-subtext line-clamp-3 leading-relaxed" x-text="article.summary"></p>
+            </div>
+            <div class="pt-4 mt-4 border-t border-apple-border/60 flex items-center justify-between text-xs font-medium text-apple-blue">
+              <span>Lire l'article complet</span>
+              <span class="group-hover:translate-x-0.5 transition-transform">→</span>
+            </div>
+          </a>
+        </template>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER MINIMALISTE -->
+  <footer class="border-t border-apple-border bg-white mt-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-apple-subtext">
+      <span>Garmin Value Lab • Moteur d'aide à la décision horlogère & sportive</span>
+      <div class="flex items-center gap-4">
+        <button @click="resetToDefaults()" class="hover:text-apple-red transition">Réinitialiser les données démo</button>
+        <span>Stockage local actif</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ===================================================================== -->
+  <!-- DRAWER LATÉRAL : AJOUTER UNE MONTRE                                   -->
+  <!-- ===================================================================== -->
+  <div x-show="showAddDrawer" x-cloak class="fixed inset-0 z-50 overflow-hidden">
+    <div @click="showAddDrawer = false" x-show="showAddDrawer" x-transition.opacity class="fixed inset-0 bg-black/25 backdrop-blur-xs"></div>
+    <div class="fixed inset-y-0 right-0 max-w-md w-full bg-white shadow-apple-lg border-l border-apple-border flex flex-col">
+      <div class="px-6 py-5 border-b border-apple-border flex items-center justify-between">
+        <div>
+          <h3 class="text-base font-semibold text-apple-text">Nouveau modèle Garmin</h3>
+          <p class="text-xs text-apple-subtext">Génère automatiquement sa courbe historique et future</p>
+        </div>
+        <button @click="showAddDrawer = false" class="w-8 h-8 rounded-full bg-[#F5F5F7] hover:bg-[#E5E5EA] flex items-center justify-center text-apple-text">✕</button>
+      </div>
+
+      <form @submit.prevent="addNewWatch()" class="p-6 space-y-4 overflow-y-auto flex-1">
+        <div>
+          <label class="block text-xs font-semibold text-apple-text mb-1">Nom complet du modèle *</label>
+          <input type="text" required placeholder="ex: Tactix 8 AMOLED 51mm" x-model="newWatchForm.name"
+                 class="w-full px-3.5 py-2.5 rounded-xl border border-apple-border text-sm focus:outline-none focus:border-apple-blue">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-apple-text mb-1">Gamme</label>
+            <select x-model="newWatchForm.series" class="w-full px-3 py-2.5 rounded-xl border border-apple-border text-sm bg-white focus:outline-none focus:border-apple-blue">
+              <option value="Tactix">Tactix</option>
+              <option value="Fenix">Fenix</option>
+              <option value="Enduro">Enduro</option>
+              <option value="Forerunner">Forerunner</option>
+              <option value="Instinct">Instinct</option>
+              <option value="Epix">Epix</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-apple-text mb-1">Technologie Écran</label>
+            <select x-model="newWatchForm.screen" class="w-full px-3 py-2.5 rounded-xl border border-apple-border text-sm bg-white focus:outline-none focus:border-apple-blue">
+              <option value="AMOLED">AMOLED</option>
+              <option value="MIP Solar">MIP Solar</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-apple-text mb-1">Prix de lancement (PDSF €) *</label>
+            <input type="number" required min="150" max="3500" step="10" x-model.number="newWatchForm.msrp"
+                   class="w-full px-3.5 py-2.5 rounded-xl border border-apple-border text-sm font-mono focus:outline-none focus:border-apple-blue">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-apple-text mb-1">Couleur courbe</label>
+            <input type="color" x-model="newWatchForm.color" class="w-full h-[42px] p-1 rounded-xl border border-apple-border bg-white cursor-pointer">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-apple-text mb-1">Date de sortie *</label>
+            <input type="month" required x-model="newWatchForm.releaseDate"
+                   class="w-full px-3 py-2.5 rounded-xl border border-apple-border text-sm focus:outline-none focus:border-apple-blue">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-apple-text mb-1">Successeur estimé *</label>
+            <input type="month" required x-model="newWatchForm.successorDate"
+                   class="w-full px-3 py-2.5 rounded-xl border border-apple-border text-sm focus:outline-none focus:border-apple-blue">
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-apple-border space-y-3">
+          <span class="block text-xs font-semibold text-apple-subtext uppercase tracking-wider">Prix actuels constatés (optionnel)</span>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] text-apple-subtext mb-1">Neuf Plancher (€)</label>
+              <input type="number" placeholder="Auto" x-model.number="newWatchForm.currentNewFloor"
+                     class="w-full px-3 py-2 rounded-xl border border-apple-border text-sm font-mono">
+            </div>
+            <div>
+              <label class="block text-[11px] text-apple-subtext mb-1">Occasion Plancher (€)</label>
+              <input type="number" placeholder="Auto" x-model.number="newWatchForm.currentUsedFloor"
+                     class="w-full px-3 py-2 rounded-xl border border-apple-border text-sm font-mono">
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-4 flex items-center justify-end gap-2">
+          <button type="button" @click="showAddDrawer = false" class="px-4 py-2.5 rounded-xl border border-apple-border text-xs font-medium text-apple-text hover:bg-[#F5F5F7]">
+            Annuler
+          </button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-apple-blue hover:bg-apple-blueHover text-white text-xs font-semibold shadow-xs">
+            Créer et analyser
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- DRAWER LATÉRAL : ÉDITER LES POINTS DE PRIX                            -->
+  <!-- ===================================================================== -->
+  <div x-show="showPriceDrawer" x-cloak class="fixed inset-0 z-50 overflow-hidden">
+    <div @click="showPriceDrawer = false" x-show="showPriceDrawer" x-transition.opacity class="fixed inset-0 bg-black/25 backdrop-blur-xs"></div>
+    <div class="fixed inset-y-0 right-0 max-w-xl w-full bg-white shadow-apple-lg border-l border-apple-border flex flex-col">
+      <div class="px-6 py-5 border-b border-apple-border flex items-center justify-between">
+        <div>
+          <h3 class="text-base font-semibold text-apple-text">Éditeur de relevés — <span x-text="primaryWatch?.name"></span></h3>
+          <p class="text-xs text-apple-subtext">Modifiez n'importe quel point historique ou ajoutez un relevé aujourd'hui</p>
+        </div>
+        <button @click="showPriceDrawer = false" class="w-8 h-8 rounded-full bg-[#F5F5F7] hover:bg-[#E5E5EA] flex items-center justify-center text-apple-text">✕</button>
+      </div>
+
+      <div class="p-6 overflow-y-auto flex-1 space-y-6" x-if="primaryWatch">
+        <!-- Ajout rapide d'un relevé aujourd'hui -->
+        <div class="bg-[#F5F5F7] p-4 rounded-2xl border border-apple-border space-y-3">
+          <span class="text-xs font-semibold text-apple-text block">+ Ajouter un nouveau relevé daté</span>
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <input type="month" x-model="newPointForm.date" class="px-2.5 py-2 rounded-lg border border-apple-border bg-white text-xs">
+            <input type="number" placeholder="Neuf Min" x-model.number="newPointForm.newFloor" class="px-2.5 py-2 rounded-lg border border-apple-border bg-white text-xs font-mono">
+            <input type="number" placeholder="Neuf Moy" x-model.number="newPointForm.newAvg" class="px-2.5 py-2 rounded-lg border border-apple-border bg-white text-xs font-mono">
+            <input type="number" placeholder="Occas Min" x-model.number="newPointForm.usedFloor" class="px-2.5 py-2 rounded-lg border border-apple-border bg-white text-xs font-mono">
+            <input type="number" placeholder="Occas Moy" x-model.number="newPointForm.usedAvg" class="px-2.5 py-2 rounded-lg border border-apple-border bg-white text-xs font-mono">
+          </div>
+          <button @click="addHistoryPoint()" class="w-full py-2 rounded-xl bg-[#1D1D1F] text-white text-xs font-medium hover:bg-black transition">
+            Enregistrer ce point sur la courbe
+          </button>
+        </div>
+
+        <!-- Liste des points existants éditables -->
+        <div class="space-y-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-apple-subtext">Historique enregistré</span>
+          <div class="space-y-2">
+            <template x-for="(pt, idx) in primaryWatch.history" :key="idx">
+              <div class="p-3 rounded-xl border border-apple-border bg-white grid grid-cols-2 sm:grid-cols-6 gap-2 items-center text-xs">
+                <div class="font-mono font-semibold text-apple-text" x-text="pt.date"></div>
+                <div>
+                  <span class="block text-[10px] text-apple-subtext">Neuf Min</span>
+                  <input type="number" x-model.number="pt.newFloor" @change="saveAndRefresh()" class="w-full font-mono border border-apple-border rounded px-1.5 py-1">
+                </div>
+                <div>
+                  <span class="block text-[10px] text-apple-subtext">Neuf Moy</span>
+                  <input type="number" x-model.number="pt.newAvg" @change="saveAndRefresh()" class="w-full font-mono border border-apple-border rounded px-1.5 py-1">
+                </div>
+                <div>
+                  <span class="block text-[10px] text-apple-subtext">Occas Min</span>
+                  <input type="number" x-model.number="pt.usedFloor" @change="saveAndRefresh()" class="w-full font-mono border border-apple-border rounded px-1.5 py-1 text-apple-blue font-semibold">
+                </div>
+                <div>
+                  <span class="block text-[10px] text-apple-subtext">Occas Moy</span>
+                  <input type="number" x-model.number="pt.usedAvg" @change="saveAndRefresh()" class="w-full font-mono border border-apple-border rounded px-1.5 py-1">
+                </div>
+                <div class="text-right">
+                  <button @click="removeHistoryPoint(idx)" x-show="primaryWatch.history.length > 1" class="text-apple-red hover:underline text-[11px]">Suppr.</button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODALE FLOUTÉE STYLE MACOS : LÉGENDE & MÉTHODOLOGIE (?)               -->
+  <!-- ===================================================================== -->
+  <div x-show="showMethodology" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div @click="showMethodology = false" x-show="showMethodology" x-transition.opacity class="fixed inset-0 bg-black/30 backdrop-blur-md"></div>
+    <div class="relative bg-white/95 backdrop-blur-xl border border-apple-border rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-apple-lg space-y-5 z-10 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-apple-border pb-4">
+        <h3 class="text-lg font-semibold text-apple-text">Méthodologie & Modèle Prédictif Garmin</h3>
+        <button @click="showMethodology = false" class="w-8 h-8 rounded-full bg-[#F5F5F7] hover:bg-[#E5E5EA] flex items-center justify-center text-sm">✕</button>
+      </div>
+
+      <div class="space-y-4 text-xs sm:text-sm text-apple-text leading-relaxed">
+        <div class="p-4 rounded-2xl bg-[#F5F5F7] space-y-1.5">
+          <h4 class="font-semibold text-apple-text">1. Cycles de décote observés sur les gammes Outdoor (Tactix / Fenix)</h4>
+          <p class="text-apple-subtext text-xs">
+            Les montres Garmin haut de gamme suivent une courbe en escalier : maintien au PDSF durant les 3 premiers mois, première baisse promotionnelle de <strong>-12 % à -18 %</strong> entre le 6ᵉ et le 12ᵉ mois, plateau de stabilisation, puis décrochage brutal de <strong>-15 % à -25 %</strong> lors de l'annonce officielle du successeur (cycle moyen de 18 à 30 mois).
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div class="p-3.5 rounded-2xl border border-apple-border">
+            <span class="font-semibold block mb-1 text-emerald-700">Neuf Plancher vs Neuf Moyen</span>
+            <p class="text-apple-subtext">Le plancher correspond aux meilleures ventes flash européennes (Idealo.de, Amazon.es/.it, revendeurs spécialisés). Le moyen reflète le prix catalogue remisé courant.</p>
+          </div>
+          <div class="p-3.5 rounded-2xl border border-apple-border">
+            <span class="font-semibold block mb-1 text-apple-blue">Occasion « Comme Neuf » Plancher</span>
+            <p class="text-apple-subtext">Correspond aux unités seconde main avec facture, boîte et verre saphir intact sur Leboncoin, Kleinanzeigen et eBay UE.</p>
+          </div>
+        </div>
+
+        <p class="text-xs text-apple-subtext">
+          <strong>Astuce :</strong> Cliquez directement sur n'importe quel point du graphique pour ouvrir l'éditeur et ajuster les valeurs à vos propres observations terrain.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- LOGIQUE APPLICATIVE ALPINE.JS + CHART.JS                              -->
+  <!-- ===================================================================== -->
+  <script>
+    function garminApp() {
+      return {
+        // État UI
+        compareMode: false,
+        xAxisMode: 'date', // 'date' | 'age'
+        forecastYears: 2,  // 1, 2, 3, 4
+        annualDepreciation: 11, // % par an après stabilisation
+        successorDrop: 18,      // % de chute à la sortie du successeur
+        activeSeries: ['newFloor', 'usedFloor', 'usedAvg'],
+        selectedIds: ['tactix-8-amoled-47'],
+        
+        // Modales & Drawers
+        showAddDrawer: false,
+        showPriceDrawer: false,
+        showMethodology: false,
+
+        // Simulateur
+        simPrice: 990,
+        simCondition: 'used',
+        simMonths: 18,
+
+        // Données
+        watches: [],
+        scrapedOffers: {},
+        newsItems: [],
+        lastSyncText: 'Données locales',
+        chartInstance: null,
+
+        // Formulaires
+        newWatchForm: {
+          name: '',
+          series: 'Tactix',
+          screen: 'AMOLED',
+          msrp: 1299,
+          color: '#0071E3',
+          releaseDate: '2025-02',
+          successorDate: '2027-02',
+          currentNewFloor: null,
+          currentUsedFloor: null
+        },
+        newPointForm: {
+          date: new Date().toISOString().slice(0, 7),
+          newFloor: '',
+          newAvg: '',
+          usedFloor: '',
+          usedAvg: ''
+        },
+
+        seriesConfig: [
+          { key: 'newFloor', label: 'Neuf Plancher', badgeColor: '#34C759' },
+          { key: 'newAvg', label: 'Neuf Moyen', badgeColor: '#8E8E93' },
+          { key: 'usedFloor', label: 'Occasion Plancher', badgeColor: '#0071E3' },
+          { key: 'usedAvg', label: 'Occasion Moyen', badgeColor: '#FF9500' }
+        ],
+
+        async init() {
+          this.loadFromStorage();
+          await this.fetchExternalDataJson();
+          
+          // Initialiser le prix du simulateur sur le plancher occasion de la montre principale
+          if (this.primaryWatch) {
+            this.simPrice = this.getLatestPrices(this.primaryWatch).usedFloor;
+          }
+
+          this.$nextTick(() => {
+            this.initChart();
+          });
+
+          // Synchroniser le prix du simulateur quand on change de montre principale
+          this.$watch('selectedIds', () => {
+            if (this.primaryWatch) {
+              const latest = this.getLatestPrices(this.primaryWatch);
+              this.simPrice = this.simCondition === 'new' ? latest.newFloor : latest.usedFloor;
+            }
+            this.updateChart();
+          });
+        },
+
+        getDefaultWatches() {
+          return [
+            {
+              id: 'tactix-8-amoled-47',
+              name: 'Tactix 8 AMOLED 47mm',
+              series: 'Tactix',
+              screen: 'AMOLED',
+              msrp: 1399,
+              color: '#0071E3',
+              releaseDate: '2025-02',
+              successorDate: '2027-02',
+              history: [
+                { date: '2025-02', newFloor: 1399, newAvg: 1399, usedFloor: 1180, usedAvg: 1240 },
+                { date: '2025-05', newFloor: 1290, newAvg: 1350, usedFloor: 1080, usedAvg: 1150 },
+                { date: '2025-08', newFloor: 1199, newAvg: 1280, usedFloor: 990, usedAvg: 1060 },
+                { date: '2025-11', newFloor: 1120, newAvg: 1210, usedFloor: 920, usedAvg: 985 },
+                { date: '2026-02', newFloor: 1075, newAvg: 1160, usedFloor: 870, usedAvg: 930 },
+                { date: '2026-06', newFloor: 1030, newAvg: 1120, usedFloor: 830, usedAvg: 890 },
+                { date: '2026-11', newFloor: 995, newAvg: 1080, usedFloor: 790, usedAvg: 850 }
+              ]
+            },
+            {
+              id: 'tactix-7-amoled',
+              name: 'Tactix 7 AMOLED',
+              series: 'Tactix',
+              screen: 'AMOLED',
+              msrp: 1399,
+              color: '#1D1D1F',
+              releaseDate: '2023-09',
+              successorDate: '2025-02',
+              history: [
+                { date: '2023-09', newFloor: 1399, newAvg: 1399, usedFloor: 1150, usedAvg: 1220 },
+                { date: '2024-01', newFloor: 1249, newAvg: 1320, usedFloor: 1020, usedAvg: 1090 },
+                { date: '2024-06', newFloor: 1149, newAvg: 1230, usedFloor: 930, usedAvg: 990 },
+                { date: '2024-11', newFloor: 1050, newAvg: 1150, usedFloor: 840, usedAvg: 910 },
+                { date: '2025-03', newFloor: 890, newAvg: 980, usedFloor: 690, usedAvg: 760 },
+                { date: '2025-10', newFloor: 820, newAvg: 910, usedFloor: 620, usedAvg: 685 },
+                { date: '2026-05', newFloor: 760, newAvg: 850, usedFloor: 560, usedAvg: 620 },
+                { date: '2026-11', newFloor: 720, newAvg: 810, usedFloor: 520, usedAvg: 580 }
+              ]
+            },
+            {
+              id: 'fenix-8-amoled-47',
+              name: 'Fenix 8 AMOLED 47mm',
+              series: 'Fenix',
+              screen: 'AMOLED',
+              msrp: 1099,
+              color: '#34C759',
+              releaseDate: '2024-08',
+              successorDate: '2026-09',
+              history: [
+                { date: '2024-08', newFloor: 1099, newAvg: 1099, usedFloor: 920, usedAvg: 970 },
+                { date: '2024-11', newFloor: 979, newAvg: 1040, usedFloor: 820, usedAvg: 870 },
+                { date: '2025-03', newFloor: 899, newAvg: 960, usedFloor: 740, usedAvg: 795 },
+                { date: '2025-08', newFloor: 839, newAvg: 910, usedFloor: 680, usedAvg: 735 },
+                { date: '2026-02', newFloor: 790, newAvg: 860, usedFloor: 630, usedAvg: 685 },
+                { date: '2026-09', newFloor: 660, newAvg: 740, usedFloor: 510, usedAvg: 565 },
+                { date: '2026-11', newFloor: 639, newAvg: 715, usedFloor: 490, usedAvg: 540 }
+              ]
+            },
+            {
+              id: 'enduro-3',
+              name: 'Enduro 3 Solar 51mm',
+              series: 'Enduro',
+              screen: 'MIP Solar',
+              msrp: 899,
+              color: '#FF9500',
+              releaseDate: '2024-08',
+              successorDate: '2026-10',
+              history: [
+                { date: '2024-08', newFloor: 899, newAvg: 899, usedFloor: 760, usedAvg: 800 },
+                { date: '2024-12', newFloor: 810, newAvg: 860, usedFloor: 680, usedAvg: 720 },
+                { date: '2025-06', newFloor: 749, newAvg: 810, usedFloor: 620, usedAvg: 665 },
+                { date: '2026-01', newFloor: 699, newAvg: 760, usedFloor: 570, usedAvg: 615 },
+                { date: '2026-11', newFloor: 595, newAvg: 660, usedFloor: 470, usedAvg: 515 }
+              ]
+            }
+          ];
+        },
+
+        getDefaultNews() {
+          return [
+            {
+              title: "Garmin déploiement Q4 : Nouvelles métriques d'endurance tactique et cartes hors-ligne améliorées",
+              source: "DC Rainmaker",
+              date: "Il y a 2 jours",
+              summary: "La dernière mise à jour bêta pour les séries Fenix 8, Tactix 8 et Enduro 3 introduit un recalcul dynamique de la récupération en altitude et optimise l'autonomie AMOLED.",
+              url: "https://www.dcrainmaker.com"
+            },
+            {
+              title: "Analyse du marché secondaire : Pourquoi les modèles Tactix conservent 12 % de valeur en plus que les Fenix",
+              source: "the5krunner",
+              date: "Il y a 5 jours",
+              summary: "Une distribution plus sélective et l'absence de remises agressives en grande surface permettent à la gamme Tactix d'afficher la meilleure rétention de cote chez Garmin.",
+              url: "https://the5krunner.com"
+            },
+            {
+              title: "Garmin Newsroom : Extension de la compatibilité Garmin Share et chiffrement des traces GPX",
+              source: "Garmin Newsroom",
+              date: "Il y a 1 semaine",
+              summary: "Les utilisateurs peuvent désormais transférer des itinéraires complexes et des points de cheminement directement entre montres compatibles sans connexion réseau.",
+              url: "https://www.garmin.com/en-US/newsroom/"
+            }
+          ];
+        },
+
+        loadFromStorage() {
+          const saved = localStorage.getItem('garmin_value_lab_v1');
+          if (saved) {
+            try {
+              const parsed = JSON.parse(saved);
+              if (Array.isArray(parsed.watches) && parsed.watches.length > 0) {
+                this.watches = parsed.watches;
+                this.selectedIds = parsed.selectedIds || [this.watches[0].id];
+              } else {
+                this.watches = this.getDefaultWatches();
+              }
+            } catch (e) {
+              this.watches = this.getDefaultWatches();
+            }
+          } else {
+            this.watches = this.getDefaultWatches();
+          }
+          this.newsItems = this.getDefaultNews();
+        },
+
+        saveToStorage() {
+          localStorage.setItem('garmin_value_lab_v1', JSON.stringify({
+            watches: this.watches,
+            selectedIds: this.selectedIds
+          }));
+        },
+
+        async fetchExternalDataJson() {
+          try {
+            const response = await fetch('./data.json?t=' + Date.now());
+            if (!response.ok) return;
+            const data = await response.json();
+            
+            if (data.updated_at) {
+              this.lastSyncText = 'Sync UE : ' + new Date(data.updated_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+            }
+            if (data.prices) {
+              this.scrapedOffers = data.prices;
+              // Injection automatique du dernier relevé si un prix valide est détecté
+              const currentMonth = new Date().toISOString().slice(0, 7);
+              this.watches.forEach(w => {
+                const entry = data.prices[w.id];
+                if (entry && entry.offers && entry.offers.length > 0) {
+                  const newOffers = entry.offers.filter(o => o.condition === 'Neuf').map(o => o.price);
+                  const usedOffers = entry.offers.filter(o => o.condition === 'Occasion').map(o => o.price);
+                  const latest = this.getLatestPrices(w);
+                  
+                  const point = {
+                    date: currentMonth,
+                    newFloor: newOffers.length ? Math.min(...newOffers) : latest.newFloor,
+                    newAvg: newOffers.length ? Math.round(newOffers.reduce((a,b)=>a+b,0)/newOffers.length) : latest.newAvg,
+                    usedFloor: usedOffers.length ? Math.min(...usedOffers) : latest.usedFloor,
+                    usedAvg: usedOffers.length ? Math.round(usedOffers.reduce((a,b)=>a+b,0)/usedOffers.length) : latest.usedAvg
+                  };
+                  const existingIdx = w.history.findIndex(h => h.date === currentMonth);
+                  if (existingIdx >= 0) w.history[existingIdx] = point;
+                  else w.history.push(point);
+                }
+              });
+            }
+            if (Array.isArray(data.news) && data.news.length > 0) {
+              this.newsItems = data.news.slice(0, 6);
+            }
+          } catch (err) {
+            // Mode autonome hors-ligne silencieux
+          }
+        },
+
+        // Getters calculés
+        get primaryWatch() {
+          return this.watches.find(w => w.id === this.selectedIds[0]) || this.watches[0];
+        },
+
+        get displayedWatches() {
+          return this.watches.filter(w => this.selectedIds.includes(w.id));
+        },
+
+        isSelected(id) {
+          return this.selectedIds.includes(id);
+        },
+
+        setCompareMode(mode) {
+          this.compareMode = mode;
+          if (!mode && this.selectedIds.length > 1) {
+            this.selectedIds = [this.selectedIds[0]];
+          } else if (mode && this.selectedIds.length === 1 && this.watches.length > 1) {
+            const second = this.watches.find(w => w.id !== this.selectedIds[0]);
+            if (second) this.selectedIds.push(second.id);
+          }
+          this.updateChart();
+        },
+
+        toggleWatchSelection(id) {
+          if (!this.compareMode) {
+            this.selectedIds = [id];
+          } else {
+            if (this.selectedIds.includes(id)) {
+              if (this.selectedIds.length > 1) {
+                this.selectedIds = this.selectedIds.filter(item => item !== id);
+              }
+            } else {
+              if (this.selectedIds.length >= 3) {
+                this.selectedIds.shift();
+              }
+              this.selectedIds.push(id);
+            }
+          }
+          this.saveToStorage();
+        },
+
+        toggleSeries(key) {
+          if (this.activeSeries.includes(key)) {
+            if (this.activeSeries.length > 1) {
+              this.activeSeries = this.activeSeries.filter(k => k !== key);
+            }
+          } else {
+            this.activeSeries.push(key);
+          }
+          this.updateChart();
+        },
+
+        getLatestPrices(watch) {
+          if (!watch || !watch.history || watch.history.length === 0) {
+            return { newFloor: watch?.msrp || 0, newAvg: watch?.msrp || 0, usedFloor: watch?.msrp || 0, usedAvg: watch?.msrp || 0 };
+          }
+          const sorted = [...watch.history].sort((a, b) => a.date.localeCompare(b.date));
+          return sorted[sorted.length - 1];
+        },
+
+        getScrapedOffers(watchId) {
+          if (!watchId || !this.scrapedOffers[watchId]) return [];
+          return (this.scrapedOffers[watchId].offers || []).slice(0, 3);
+        },
+
+        // Moteur prédictif (calcule le prix estimé à +N mois depuis le dernier point connu)
+        predictFuturePrice(watch, monthsAhead, seriesKey) {
+          if (!watch) return 0;
+          const latest = this.getLatestPrices(watch);
+          let currentPrice = latest[seriesKey] || watch.msrp;
+          const lastDate = new Date(latest.date + '-01');
+          const succDate = new Date(watch.successorDate + '-01');
+          
+          const monthlyRate = (this.annualDepreciation / 100) / 12;
+          const floorLimit = watch.msrp * 0.22; // Plancher résiduel minimum (22% du PDSF)
+
+          for (let m = 1; m <= monthsAhead; m++) {
+            const simDate = new Date(lastDate.getFullYear(), lastDate.getMonth() + m, 1);
+            // Décrochage brutal si on franchit la date de sortie du successeur
+            const prevSimDate = new Date(lastDate.getFullYear(), lastDate.getMonth() + m - 1, 1);
+            if (prevSimDate < succDate && simDate >= succDate) {
+              currentPrice = currentPrice * (1 - (this.successorDrop / 100));
+            } else {
+              currentPrice = currentPrice * (1 - monthlyRate);
+            }
+            if (currentPrice < floorLimit) currentPrice = floorLimit;
+          }
+          return Math.round(currentPrice);
+        },
+
+        // Analyse Simulateur : Score d'opportunité
+        get opportunityAnalysis() {
+          if (!this.primaryWatch) return {};
+          const latest = this.getLatestPrices(this.primaryWatch);
+          const benchmarkFloor = this.simCondition === 'new' ? latest.newFloor : latest.usedFloor;
+          const benchmarkAvg = this.simCondition === 'new' ? latest.newAvg : latest.usedAvg;
+          const price = Number(this.simPrice) || benchmarkFloor;
+          
+          const diffPct = ((price - benchmarkFloor) / benchmarkFloor) * 100;
+
+          if (diffPct <= -8) {
+            return {
+              score: 96,
+              label: `Pépite : ${Math.abs(Math.round(diffPct))}% sous le plancher`,
+              badgeClass: 'bg-emerald-100 text-emerald-800',
+              barClass: 'bg-apple-green',
+              detail: 'Prix exceptionnellement bas. Vérifiez la facture et l’état du verre saphir.',
+              benchmarkFloor
+            };
+          } else if (diffPct <= 2) {
+            return {
+              score: 78,
+              label: 'Très bon prix (Au niveau du plancher)',
+              badgeClass: 'bg-blue-100 text-blue-800',
+              barClass: 'bg-apple-blue',
+              detail: 'Vous achetez au meilleur tarif constaté actuellement en Europe.',
+              benchmarkFloor
+            };
+          } else if (price <= benchmarkAvg) {
+            return {
+              score: 52,
+              label: 'Prix marché moyen',
+              badgeClass: 'bg-amber-100 text-amber-800',
+              barClass: 'bg-apple-orange',
+              detail: `Vous pouvez négocier environ ${Math.round(price - benchmarkFloor)} € pour atteindre le plancher.`,
+              benchmarkFloor
+            };
+          } else {
+            return {
+              score: 22,
+              label: `Trop cher (+${Math.round(diffPct)}% vs plancher)`,
+              badgeClass: 'bg-red-100 text-red-800',
+              barClass: 'bg-apple-red',
+              detail: 'Tarif supérieur à la moyenne constatée. Attendez une baisse ou négociez.',
+              benchmarkFloor
+            };
+          }
+        },
+
+        // Analyse Simulateur : Coûts & Revente
+        get simResult() {
+          if (!this.primaryWatch) return { resaleValue: 0, netLoss: 0, monthlyCost: 0, dailyCost: 0 };
+          const purchase = Number(this.simPrice) || 0;
+          // À la revente, la montre est revendue sur le marché de l'occasion moyen
+          const resaleValue = this.predictFuturePrice(this.primaryWatch, this.simMonths, 'usedAvg');
+          const netLoss = Math.max(0, purchase - resaleValue);
+          const monthlyCost = netLoss / this.simMonths;
+          const dailyCost = netLoss / (this.simMonths * 30.4);
+          return { resaleValue, netLoss, monthlyCost, dailyCost };
+        },
+
+        // Analyse Simulateur : Verdict d'attente
+        get waitVerdict() {
+          if (!this.primaryWatch) return {};
+          const now = new Date();
+          const succ = new Date(this.primaryWatch.successorDate + '-01');
+          const monthsToSucc = (succ.getFullYear() - now.getFullYear()) * 12 + (succ.getMonth() - now.getMonth());
+          const latest = this.getLatestPrices(this.primaryWatch);
+          const refPrice = this.simCondition === 'new' ? latest.newFloor : latest.usedFloor;
+
+          if (monthsToSucc <= 0) {
+            return {
+              shouldBuyNow: true,
+              title: 'Feu vert : Le successeur est déjà sorti',
+              explanation: 'La décote majeure liée au renouvellement de gamme est déjà intégrée dans les prix actuels. Le risque de chute brutale est faible.',
+              waitSavings: 0
+            };
+          } else if (monthsToSucc <= 5) {
+            const postSuccPrice = this.predictFuturePrice(this.primaryWatch, monthsToSucc + 1, this.simCondition === 'new' ? 'newFloor' : 'usedFloor');
+            const savings = Math.max(0, refPrice - postSuccPrice);
+            return {
+              shouldBuyNow: false,
+              title: `Patience recommandée (Successeur dans ~${monthsToSucc} mois)`,
+              explanation: `En patientant jusqu'à la sortie du prochain modèle (${this.formatDateShort(this.primaryWatch.successorDate)}), vous économiserez environ ${Math.round(savings)} € supplémentaires.`,
+              waitSavings: savings
+            };
+          } else {
+            return {
+              shouldBuyNow: true,
+              title: `Acheter maintenant (Successeur lointain : ${monthsToSucc} mois)`,
+              explanation: 'Le modèle est encore dans sa phase de plateau tarifaire. Attendre immobiliserait votre usage trop longtemps pour un gain marginal.',
+              waitSavings: Math.round(refPrice * 0.04)
+            };
+          }
+        },
+
+        // =====================================================================
+        // GESTION DU GRAPHIQUE CHART.JS
+        // =====================================================================
+        monthDiff(d1Str, d2Str) {
+          const [y1, m1] = d1Str.split('-').map(Number);
+          const [y2, m2] = d2Str.split('-').map(Number);
+          return (y2 - y1) * 12 + (m2 - m1);
+        },
+
+        addMonthsStr(dateStr, monthsToAdd) {
+          const [y, m] = dateStr.split('-').map(Number);
+          const d = new Date(y, m - 1 + monthsToAdd, 1);
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        },
+
+        buildChartData() {
+          const targetWatches = this.displayedWatches;
+          const forecastMonths = this.forecastYears * 12;
+          const datasets = [];
+          let labels = [];
+
+          if (this.xAxisMode === 'age') {
+            // Alignement par âge du produit : Mois 0 à Mois +48
+            const maxAge = 48;
+            labels = Array.from({ length: maxAge + 1 }, (_, i) => `M+${i}`);
+
+            targetWatches.forEach(watch => {
+              const sortedHist = [...watch.history].sort((a, b) => a.date.localeCompare(b.date));
+              const lastHist = sortedHist[sortedHist.length - 1];
+              const lastAge = Math.max(0, this.monthDiff(watch.releaseDate, lastHist.date));
+
+              this.activeSeries.forEach(sKey => {
+                const histPoints = new Array(maxAge + 1).fill(null);
+                const projPoints = new Array(maxAge + 1).fill(null);
+
+                // Remplir historique connu
+                sortedHist.forEach(pt => {
+                  const age = this.monthDiff(watch.releaseDate, pt.date);
+                  if (age >= 0 && age <= maxAge) {
+                    histPoints[age] = pt[sKey];
+                  }
+                });
+
+                // Remplir projection pointillée
+                if (lastAge <= maxAge) {
+                  projPoints[lastAge] = lastHist[sKey];
+                  const steps = Math.min(forecastMonths, maxAge - lastAge);
+                  for (let step = 1; step <= steps; step++) {
+                    projPoints[lastAge + step] = this.predictFuturePrice(watch, step, sKey);
+                  }
+                }
+
+                const lineColor = this.compareMode ? watch.color : this.getSeriesColor(sKey);
+                const sLabel = this.seriesConfig.find(s => s.key === sKey)?.label;
+
+                datasets.push({
+                  label: `${watch.name} — ${sLabel}`,
+                  data: histPoints,
+                  borderColor: lineColor,
+                  backgroundColor: lineColor,
+                  borderWidth: sKey === 'usedFloor' || sKey === 'newFloor' ? 2.5 : 1.8,
+                  spanGaps: true,
+                  tension: 0.25,
+                  pointRadius: 3,
+                  pointHoverRadius: 6,
+                  watchId: watch.id,
+                  isProjection: false
+                });
+
+                datasets.push({
+                  label: `${watch.name} — ${sLabel} (Est.)`,
+                  data: projPoints,
+                  borderColor: lineColor,
+                  backgroundColor: 'transparent',
+                  borderWidth: 2,
+                  borderDash: [5, 5],
+                  spanGaps: true,
+                  tension: 0.25,
+                  pointRadius: 0,
+                  pointHoverRadius: 5,
+                  watchId: watch.id,
+                  isProjection: true
+                });
+              });
+            });
+
+          } else {
+            // Alignement par Date Calendaire
+            const allDatesSet = new Set();
+            targetWatches.forEach(watch => {
+              const sortedHist = [...watch.history].sort((a, b) => a.date.localeCompare(b.date));
+              sortedHist.forEach(pt => allDatesSet.add(pt.date));
+              const lastDate = sortedHist[sortedHist.length - 1].date;
+              for (let m = 3; m <= forecastMonths; m += 3) {
+                allDatesSet.add(this.addMonthsStr(lastDate, m));
+              }
+            });
+
+            labels = Array.from(allDatesSet).sort();
+
+            targetWatches.forEach(watch => {
+              const sortedHist = [...watch.history].sort((a, b) => a.date.localeCompare(b.date));
+              const lastHist = sortedHist[sortedHist.length - 1];
+
+              this.activeSeries.forEach(sKey => {
+                const histData = labels.map(lbl => {
+                  const found = sortedHist.find(h => h.date === lbl);
+                  return found ? found[sKey] : null;
+                });
+
+                const projData = labels.map(lbl => {
+                  if (lbl === lastHist.date) return lastHist[sKey];
+                  const diff = this.monthDiff(lastHist.date, lbl);
+                  if (diff > 0 && diff <= forecastMonths) {
+                    return this.predictFuturePrice(watch, diff, sKey);
+                  }
+                  return null;
+                });
+
+                const lineColor = this.compareMode ? watch.color : this.getSeriesColor(sKey);
+                const sLabel = this.seriesConfig.find(s => s.key === sKey)?.label;
+
+                datasets.push({
+                  label: `${watch.name} — ${sLabel}`,
+                  data: histData,
+                  borderColor: lineColor,
+                  backgroundColor: lineColor,
+                  borderWidth: sKey === 'usedFloor' || sKey === 'newFloor' ? 2.5 : 1.8,
+                  spanGaps: true,
+                  tension: 0.25,
+                  pointRadius: 3.5,
+                  pointHoverRadius: 6,
+                  watchId: watch.id,
+                  isProjection: false
+                });
+
+                datasets.push({
+                  label: `${watch.name} — ${sLabel} (Est.)`,
+                  data: projData,
+                  borderColor: lineColor,
+                  backgroundColor: 'transparent',
+                  borderWidth: 2,
+                  borderDash: [5, 5],
+                  spanGaps: true,
+                  tension: 0.25,
+                  pointRadius: 0,
+                  pointHoverRadius: 5,
+                  watchId: watch.id,
+                  isProjection: true
+                });
+              });
+            });
+          }
+
+          return { labels, datasets };
+        },
+
+        getSeriesColor(key) {
+          const map = {
+            newFloor: '#34C759',
+            newAvg: '#8E8E93',
+            usedFloor: '#0071E3',
+            usedAvg: '#FF9500'
+          };
+          return map[key] || '#1D1D1F';
+        },
+
+        initChart() {
+          const ctx = document.getElementById('priceChart');
+          if (!ctx) return;
+
+          const chartData = this.buildChartData();
+          const self = this;
+
+          this.chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: chartData,
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: {
+                mode: 'index',
+                intersect: false
+              },
+              onClick: (event, elements) => {
+                if (elements && elements.length > 0) {
+                  const dsIndex = elements[0].datasetIndex;
+                  const ds = self.chartInstance.data.datasets[dsIndex];
+                  if (ds && ds.watchId) {
+                    self.selectedIds = [ds.watchId, ...self.selectedIds.filter(id => id !== ds.watchId)];
+                    self.openPriceEditor();
+                  }
+                }
+              },
+              plugins: {
+                legend: {
+                  display: true,
+                  position: 'bottom',
+                  labels: {
+                    usePointStyle: true,
+                    boxWidth: 8,
+                    padding: 16,
+                    font: { family: 'Inter', size: 11 },
+                    filter: (item) => !item.text.includes('(Est.)')
+                  }
+                },
+                tooltip: {
+                  backgroundColor: 'rgba(29, 29, 31, 0.92)',
+                  titleFont: { family: 'Inter', size: 12, weight: '600' },
+                  bodyFont: { family: 'SF Mono, monospace', size: 11 },
+                  padding: 12,
+                  cornerRadius: 12,
+                  callbacks: {
+                    label: (ctx) => {
+                      if (ctx.parsed.y === null) return null;
+                      return ` ${ctx.dataset.label}: ${ctx.parsed.y} €`;
+                    }
+                  }
+                }
+              },
+              scales: {
+                x: {
+                  grid: { display: false },
+                  ticks: {
+                    font: { family: 'Inter', size: 11 },
+                    color: '#86868B',
+                    maxRotation: 0,
+                    autoSkip: true,
+                    maxTicksLimit: 10
+                  }
+                },
+                y: {
+                  border: { display: false },
+                  grid: { color: '#F0F0F5' },
+                  ticks: {
+                    font: { family: 'SF Mono, monospace', size: 11 },
+                    color: '#86868B',
+                    callback: (val) => val + ' €'
+                  }
+                }
+              }
+            }
+          });
+        },
+
+        updateChart() {
+          if (!this.chartInstance) return;
+          const newData = this.buildChartData();
+          this.chartInstance.data.labels = newData.labels;
+          this.chartInstance.data.datasets = newData.datasets;
+          this.chartInstance.update('none');
+        },
+
+        // =====================================================================
+        // CRUD CATALOGUE & IMPORT/EXPORT
+        // =====================================================================
+        openAddDrawer() {
+          this.showAddDrawer = true;
+        },
+
+        addNewWatch() {
+          const f = this.newWatchForm;
+          if (!f.name || !f.msrp) return;
+
+          const id = f.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString().slice(-4);
+          const nowStr = new Date().toISOString().slice(0, 7);
+          const nf = f.currentNewFloor || Math.round(f.msrp * 0.86);
+          const uf = f.currentUsedFloor || Math.round(f.msrp * 0.72);
+
+          const history = [
+            { date: f.releaseDate, newFloor: f.msrp, newAvg: f.msrp, usedFloor: Math.round(f.msrp * 0.85), usedAvg: Math.round(f.msrp * 0.90) }
+          ];
+          if (nowStr > f.releaseDate) {
+            history.push({
+              date: nowStr,
+              newFloor: nf,
+              newAvg: Math.round(nf * 1.07),
+              usedFloor: uf,
+              usedAvg: Math.round(uf * 1.08)
+            });
+          }
+
+          const newObj = {
+            id,
+            name: f.name,
+            series: f.series,
+            screen: f.screen,
+            msrp: Number(f.msrp),
+            color: f.color,
+            releaseDate: f.releaseDate,
+            successorDate: f.successorDate,
+            history
+          };
+
+          this.watches.push(newObj);
+          this.selectedIds = [id];
+          this.compareMode = false;
+          this.saveToStorage();
+          this.updateChart();
+          this.showAddDrawer = false;
+
+          // Reset form
+          this.newWatchForm.name = '';
+          this.newWatchForm.currentNewFloor = null;
+          this.newWatchForm.currentUsedFloor = null;
+        },
+
+        deleteWatch(id) {
+          if (this.watches.length <= 1) return;
+          this.watches = this.watches.filter(w => w.id !== id);
+          this.selectedIds = this.selectedIds.filter(sid => sid !== id);
+          if (this.selectedIds.length === 0) {
+            this.selectedIds = [this.watches[0].id];
+          }
+          this.saveToStorage();
+          this.updateChart();
+        },
+
+        openPriceEditor() {
+          if (!this.primaryWatch) return;
+          const latest = this.getLatestPrices(this.primaryWatch);
+          this.newPointForm = {
+            date: new Date().toISOString().slice(0, 7),
+            newFloor: latest.newFloor,
+            newAvg: latest.newAvg,
+            usedFloor: latest.usedFloor,
+            usedAvg: latest.usedAvg
+          };
+          this.showPriceDrawer = true;
+        },
+
+        addHistoryPoint() {
+          if (!this.primaryWatch || !this.newPointForm.date) return;
+          const pt = {
+            date: this.newPointForm.date,
+            newFloor: Number(this.newPointForm.newFloor),
+            newAvg: Number(this.newPointForm.newAvg),
+            usedFloor: Number(this.newPointForm.usedFloor),
+            usedAvg: Number(this.newPointForm.usedAvg)
+          };
+          const idx = this.primaryWatch.history.findIndex(h => h.date === pt.date);
+          if (idx >= 0) {
+            this.primaryWatch.history[idx] = pt;
+          } else {
+            this.primaryWatch.history.push(pt);
+            this.primaryWatch.history.sort((a, b) => a.date.localeCompare(b.date));
+          }
+          this.saveAndRefresh();
+        },
+
+        removeHistoryPoint(idx) {
+          if (!this.primaryWatch || this.primaryWatch.history.length <= 1) return;
+          this.primaryWatch.history.splice(idx, 1);
+          this.saveAndRefresh();
+        },
+
+        saveAndRefresh() {
+          this.saveToStorage();
+          this.updateChart();
+        },
+
+        exportJSON() {
+          const blob = new Blob([JSON.stringify({ watches: this.watches }, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `garmin-value-lab-${new Date().toISOString().slice(0, 10)}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+
+        importJSON(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const data = JSON.parse(e.target.result);
+              if (Array.isArray(data.watches) && data.watches.length > 0) {
+                this.watches = data.watches;
+                this.selectedIds = [this.watches[0].id];
+                this.saveAndRefresh();
+              }
+            } catch (err) {
+              alert('Fichier JSON invalide.');
+            }
+          };
+          reader.readAsText(file);
+        },
+
+        resetToDefaults() {
+          localStorage.removeItem('garmin_value_lab_v1');
+          this.watches = this.getDefaultWatches();
+          this.selectedIds = [this.watches[0].id];
+          this.saveAndRefresh();
+        },
+
+        // Formatters
+        formatEuro(val, decimals = false) {
+          if (val === undefined || val === null || isNaN(val)) return '—';
+          return new Intl.NumberFormat('fr-FR', {
+            style: 'currency',
+            currency: 'EUR',
+            minimumFractionDigits: decimals ? 2 : 0,
+            maximumFractionDigits: decimals ? 2 : 0
+          }).format(val);
+        },
+
+        formatDateShort(ym) {
+          if (!ym) return '—';
+          const [y, m] = ym.split('-');
+          const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+          return `${months[parseInt(m, 10) - 1]} ${y}`;
+        },
+
+        calcDiscountPct(msrp, current) {
+          if (!msrp || !current) return 0;
+          return Math.max(0, Math.round(((msrp - current) / msrp) * 100));
+        }
+      };
+    }
+  </script>
+</body>
+</html>
