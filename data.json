@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-19T15:00:46.636054+00:00",
+  "updated_at": "2026-11-19T16:05:20.551778+00:00",
   "prices": {
     "tactix-8-amoled-47": {
       "name": "Tactix 8 AMOLED 47mm",
@@ -19,6 +19,13 @@
     }
   },
   "news": [
+    {
+      "title": "Garmin Signal VHF named Overall Winner in 2026 DAME Design Awards",
+      "source": "Garmin Newsroom",
+      "date": "Thu, 19 Nov 2026",
+      "summary": "OLATHE, Kan./Nov. 19, 2026/PR Newswire — Garmin (NYSE: GRMN), the world’s largest1 and most innovative marine electronics manufacturer, today announced the Garmin Signal™ VHF …",
+      "url": "https://www.garmin.com/en-US/newsroom/press-release/marine/garmin-signal-vhf-named-overall-winner-in-2026-dame-design-awards/"
+    },
     {
       "title": "Garmin honors military members with U.S. Armed Forces watch faces",
       "source": "Garmin Newsroom",
@@ -53,13 +60,6 @@
       "date": "Wed, 28 Oct 2026",
       "summary": "Schaffhausen, Switzerland/October 28, 2026/PR Newswire – Garmin® Ltd. (NYSE: GRMN), today announced results for the third quarter ended September&#160;26, 2026. Highlights inc…",
       "url": "https://www.garmin.com/en-US/newsroom/press-release/corporate/garmin-announces-third-quarter-2026-results/"
-    },
-    {
-      "title": "Garmin adds more than a dozen more Guided Visual Approaches to aviation database lineup",
-      "source": "Garmin Newsroom",
-      "date": "Thu, 22 Oct 2026",
-      "summary": "OLATHE, Kan./Oct. 22, 2026 – Garmin (NYSE: GRMN) today announced additional runways and airports for Guided Visual Approaches, including multiple runways and airports in Mexic…",
-      "url": "https://www.garmin.com/en-US/newsroom/press-release/aviation/garmin-adds-more-than-a-dozen-more-guided-visual-approaches-to-aviation-database-lineup/"
     }
   ]
 }
